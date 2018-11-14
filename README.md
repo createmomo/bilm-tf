@@ -1,4 +1,71 @@
 # bilm-tf
+
+
+### Before training
+
+- [Package requirements](https://github.com/thytran2512/bilm-tf#installing)
+- [Prepare input and vocabulary file](https://github.com/thytran2512/bilm-tf#1--prepare-input-data-and-a-vocabulary-file)
+
+
+### Training
+
+- The hyperparameters used to train the ELMo model in `options/*.json`
+    - During training, always set `n_characters=261`
+- To change final embedding dimension, find `projection_dim` in `options/*.json` and change to number of dimension your want. Note that the dimension will be doubled, i.e., `final-embedding-dim=2*projection_dim`
+- Script to train ELMo
+
+```shell
+bash jobs/run-[cpu/gpu].sh
+```
+
+- Modified training script:
+
+```shell
+export CUDA_VISIBLE_DEVICES=0 # index of GPU devices that you want to use for training
+python -u bin/train_elmo.py \
+--vocab_file $VOCAB \ # path to vocabulary
+--train_prefix $TRAIN_PREFIX \ # path to training file pattern, e.g., train-*.txt
+--save_dir $SAVE_DIR \ # path to save trained model / checkpoint
+--options_file $OPTION \ # path to option file = model hyperparameters
+--batch 50 \ # number of instances per batch, this depends on your GPU/CPU memory
+--n_epochs 10 \ # number of iteration over whole dataset
+--n_gpus 1 \ # number of GPUs, if using CPU, set to 1
+--n_tokens $N_TOKENS # number of all tokens (not unique) in the entire dataset
+```
+
+### Convert checkpoint to hdf5 weights file for later usage
+- After training, always set `n_characters=262`
+
+```shell
+python -u bin/dump_weights.py \
+--save_dir $SAVE_DIR \ # path to save trained model / checkpoint
+--outfile $WEIGHT # path to save weights
+```
+
+
+
+### Dumping embeddings for entire dataset to a single file
+- Create a text file with your tokenized dataset. Each line is one tokenized sentence.
+- Output file is `hdf5` format, Each sentence in the input data is stored as a dataset with key str(sentence_id) where sentence_id is the line number in the dataset file (indexed from 0). The embeddings for each sentence are a shape (3, n_tokens, final_embedding_dim) array.
+
+```shell
+bash dump-embedding-[cpu/gpu].sh
+```
+
+- Added python script
+
+```shell
+python -u bin/dump_cached_from_weights.py \
+--target $TARGET \ # target dataset, one tokenised sentence per line
+--vocab_file $VOCAB \ # vocabulary sorted in descending order by token count
+--options_file $OPTION \ # options file, note: change `n_characters=262`
+--weights $WEIGHT \ # weights file of the pretrained model
+--embedding $EMBEDDING # filepath to store embeddings
+```
+
+
+# Original README
+
 Tensorflow implementation of the pretrained biLM used to compute ELMo
 representations from ["Deep contextualized word representations"](http://arxiv.org/abs/1802.05365).
 
